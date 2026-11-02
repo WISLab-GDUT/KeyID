@@ -1,0 +1,258 @@
+# Public track1 template: configure a complete *.local.yaml copy before running.
+# Weight paths are relative to configs/ and point into ../ckpts/.
+schema_version: 1
+dataset:
+  format: opens2v
+  root: ../inputs/track1
+  metadata: ../inputs/track1/metadata.json
+runtime:
+  output_root: ../outputs
+  work_dir: ../outputs/workspaces/track1
+  continue_on_item_error: true
+  log_level: INFO
+  stage_packages:
+  - keyid.stages
+environment:
+  TOKENIZERS_PARALLELISM: 'false'
+credentials:
+  openai:
+    api_key: ''
+endpoints:
+  openai:
+    base_url: https://api.openai.com/v1
+stages:
+  prompt_pe:
+    uses: ernie.prompt_pe
+    enabled: true
+    needs: []
+    python: ../.venvs/ernie/bin/python
+    device: cuda
+    batch:
+      size: 4
+      checkpoint_every: 1
+    params:
+      model_path: ../ckpts/ERNIE-Image-Turbo
+      torch_dtype: bfloat16
+      width: 1264
+      height: 848
+      prompt_fields:
+      - prompt
+      seed: 1
+      seed_mode: per_item
+      temperature: 0.6
+      top_p: 0.95
+  head_extract:
+    uses: openai.head_extract
+    enabled: true
+    needs: []
+    python: ../.venvs/ernie/bin/python
+    concurrency: 16
+    params:
+      model_name: gpt-5.4
+      send_images_to_api: true
+      image_detail: high
+      reasoning_effort: none
+      template: single
+      image_index: 0
+  prompt_compose:
+    uses: openai.prompt_compose
+    enabled: true
+    needs:
+    - prompt_pe
+    - head_extract
+    python: ../.venvs/ernie/bin/python
+    concurrency: 16
+    params:
+      model_name: gpt-5.4
+      reasoning_effort: low
+      prompt_fields:
+      - prompt
+  first_frame:
+    uses: ernie.first_frame
+    enabled: true
+    needs:
+    - prompt_compose
+    python: ../.venvs/ernie/bin/python
+    device: cuda
+    batch:
+      size: 1
+      checkpoint_every: 1
+    params:
+      model_path: ../ckpts/ERNIE-Image-Turbo
+      torch_dtype: bfloat16
+      width: 1264
+      height: 848
+      steps: 8
+      guidance_scale: 1.0
+      use_pe: false
+      seed: null
+  draft_prompt:
+    uses: dataset.draft_prompt
+    enabled: true
+    needs: []
+    python: ../.venvs/ernie/bin/python
+    batch:
+      size: 16
+      checkpoint_every: 1
+    params:
+      prompt_fields:
+      - prompt
+  draft_video:
+    uses: lightx2v.draft_video
+    enabled: true
+    needs:
+    - first_frame
+    - draft_prompt
+    python: ../.venvs/lightx2v/bin/python
+    device: cuda
+    batch:
+      size: 1
+      checkpoint_every: 1
+    environment:
+      PYTORCH_CUDA_ALLOC_CONF: expandable_segments:True
+      PYTORCH_ALLOC_CONF: expandable_segments:True
+      DTYPE: BF16
+      SENSITIVE_LAYER_DTYPE: None
+    params:
+      lightx2v_path: /path/to/LightX2V
+      config_json: ../configs/wan22.i2v.4step.json
+      model_path: ../ckpts/Wan2.2-I2V-A14B
+      platform: cuda
+      seed: 42
+      negative_prompt: 色调艳丽，过曝，静态，细节模糊不清，字幕，风格，作品，画作，画面，静止，整体发灰，最差质量，低质量，JPEG压缩残留，丑陋的，残缺的，多余的手指，画得不好的手部，画得不好的脸部，畸形的，毁容的，形态畸形的肢体，手指融合，静止不动的画面，杂乱的背景，三条腿，背景人很多，倒着走
+  face_binding:
+    uses: openai.face_binding
+    enabled: true
+    needs:
+    - draft_video
+    - draft_prompt
+    - head_extract
+    python: ../.venvs/facefusion/bin/python
+    device: cuda
+    concurrency: 4
+    batch:
+      size: 20
+      checkpoint_every: 1
+    params:
+      model_name: gpt-5.4
+      reasoning_effort: none
+      send_images_to_api: true
+      image_detail: high
+      timeout: 300
+      sample_positions:
+      - 0.0
+      - 0.25
+      - 0.5
+      - 0.75
+      - 1.0
+      max_sample_frames: 7
+      max_evidence_images: 10
+      max_candidates_per_subject: 3
+      max_attempts: 2
+      bbox_padding: 0.75
+      accepted_confidences:
+      - high
+      - medium
+      cross_subject_iou_limit: 0.55
+      face_detector_model_path: ../ckpts/antelopev2/scrfd_10g_bnkps.onnx
+      face_detector_size:
+      - 640
+      - 640
+      face_detector_score: 0.6
+      face_detector_nms_threshold: 0.4
+      face_detector_threads: 2
+      face_detector_providers:
+      - cuda
+      - cpu
+      allow_cpu_fallback: false
+      face_min_size_px: 16
+      person_face_overlap: 0.85
+      person_roi_padding: 0.05
+      face_duplicate_iou: 0.5
+      anchor_face_iou: 0.4
+  face_swap:
+    uses: facefusion.profiled_video_swap
+    enabled: true
+    needs:
+    - draft_video
+    - face_binding
+    python: ../.venvs/facefusion/bin/python
+    device: cuda
+    batch:
+      size: 1
+      checkpoint_every: 1
+    environment:
+      OMP_NUM_THREADS: '1'
+    params:
+      facefusion_path: /path/to/facefusion
+      assets_dir: ../ckpts/facefusion
+      execution_providers:
+      - cuda
+      - cpu
+      allow_cpu_fallback: false
+      processors:
+      - face_swapper
+      reference_face_distance: 0.3
+      reference_face_margin: 0.05
+      minimum_matched_frames: 1
+      minimum_match_ratio: 0.0
+      keep_intermediate_videos: true
+      video_memory_strategy: tolerant
+      extra_args:
+      - --face-swapper-model
+      - inswapper_128
+      - --face-swapper-pixel-boost
+      - 512x512
+      - --face-swapper-weight
+      - '1'
+      - --output-video-quality
+      - '100'
+  keyframe_select:
+    uses: ltx.keyframe_select
+    enabled: true
+    needs:
+    - face_swap
+    python: ../.venvs/facefusion/bin/python
+    device: cuda
+    batch:
+      size: 1
+      checkpoint_every: 1
+    params:
+      num_frames: 121
+      keyframes: 5
+      face_sim_threshold: 0.35
+      face_model_name: buffalo_l
+      face_det_size: 320
+      face_det_thresh: 0.3
+      cpu_face: false
+      allow_cpu_fallback: false
+      keep_temp: false
+      face_model_root: ../ckpts/insightface
+  interpolation:
+    uses: ltx.interpolation
+    enabled: true
+    needs:
+    - keyframe_select
+    python: ../.venvs/ltx/bin/python
+    device: cuda
+    batch:
+      size: 1
+      checkpoint_every: 1
+    params:
+      ltx_path: /path/to/LTX-2
+      checkpoint_path: ../ckpts/LTX2.3/ltx-2.3-22b-dev.safetensors
+      distilled_lora_path: ../ckpts/LTX2.3/ltx-2.3-22b-distilled-lora-384.safetensors
+      distilled_lora_strength: 0.8
+      spatial_upsampler_path: ../ckpts/LTX2.3/ltx-2.3-spatial-upscaler-x2-1.1.safetensors
+      gemma_root: ../ckpts/LTX2.3/gemma-3-12b-it-qat-q4_0-unquantized
+      negative_prompt: pc game, console game, video game, cartoon, childish, ugly
+      seed: 42
+      image_conditioning_strength: 1.0
+      image_conditioning_crf: 1
+      max_batch_size: 1
+      height: null
+      width: null
+      frame_rate: null
+      num_inference_steps: null
+      streaming_prefetch_count: null
+      compile: false

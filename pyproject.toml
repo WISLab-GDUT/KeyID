@@ -1,0 +1,53 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "keyid"
+version = "0.1.0"
+description = "Staged image/video generation pipeline: YAML-configured, DAG-driven, one process per stage."
+readme = "README.md"
+requires-python = ">=3.10"
+# Deliberately minimal: the core framework must import under any of the stage
+# interpreters.  Stage-specific dependencies (torch, diffusers, onnxruntime,
+# openai, ...) live in the stage environment that YAML points at.
+dependencies = ["PyYAML>=6.0"]
+
+[project.optional-dependencies]
+dev = ["pytest>=7.4", "pytest-timeout>=2.2", "numpy", "opencv-python-headless", "Pillow"]
+relay-test = ["torch"]
+# Convenience only: install into the CLI environment if you want `keyid` on PATH.
+# Stages always run under the interpreter named in YAML.
+cli = []
+
+[project.scripts]
+keyid = "keyid.cli:main"
+
+[tool.setuptools]
+package-dir = { "" = "src" }
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+"keyid.stages" = ["**/prompts/*.txt", "**/*.json"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-ra"
+filterwarnings = ["ignore::DeprecationWarning"]
+timeout = 300
+
+[tool.ruff]
+extend-exclude = ["ckpts", "outputs", ".venvs"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP"]
+ignore = ["E501"]
+
+[tool.black]
+extend-exclude = "ckpts|outputs|\\.venvs"
+
+[tool.mypy]
+exclude = ["ckpts/", "outputs/", ".venvs/"]
+ignore_missing_imports = true
