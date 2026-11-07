@@ -12,6 +12,8 @@ KeyID is a training-free framework for identity-preserving video generation that
 
 This repository supports Track1 and Track2 with Prompt Relay, covering single-subject, multi-subject, and sequential-action video generation.
 
+![KeyID framework overview](assets/framework.png)
+
 ## 1. Installation
 
 Use Python 3.10+, CUDA, and FFmpeg. Run from the project root:
@@ -89,20 +91,83 @@ mkdir -p ckpts
 
 Request access on the [Gemma model page](https://huggingface.co/google/gemma-3-12b-it-qat-q4_0-unquantized), then log in to Hugging Face to download the weights.
 
-| Model | Hugging Face | Local directory |
-| --- | --- | --- |
-| ERNIE-Image-Turbo | [baidu/ERNIE-Image-Turbo](https://huggingface.co/baidu/ERNIE-Image-Turbo) | `ckpts/ERNIE-Image-Turbo/` |
-| Wan configuration, T5, and VAE | [Wan-AI/Wan2.2-I2V-A14B](https://huggingface.co/Wan-AI/Wan2.2-I2V-A14B/tree/main) | `ckpts/Wan2.2-I2V-A14B/` |
-| Wan high-noise 4-step 720p 260412 | [Checkpoint](https://huggingface.co/lightx2v/Wan2.2-Distill-Models/blob/main/wan2.2_i2v_A14b_high_noise_lightx2v_4step_720p_260412.safetensors) | `ckpts/Wan2.2-Distill-Models/` |
-| Wan low-noise 4-step 720p 260412 | [Checkpoint](https://huggingface.co/lightx2v/Wan2.2-Distill-Models/blob/main/wan2.2_i2v_A14b_low_noise_lightx2v_4step_720p_260412.safetensors) | `ckpts/Wan2.2-Distill-Models/` |
-| FaceFusion face swap and auxiliary models | [models-3.0.0](https://huggingface.co/facefusion/models-3.0.0/tree/main), [models-3.1.0](https://huggingface.co/facefusion/models-3.1.0/tree/main), [models-3.3.0](https://huggingface.co/facefusion/models-3.3.0/tree/main) | `ckpts/facefusion/` |
-| SCRFD detector and buffalo_l detection/recognition models | [Immich buffalo_l mirror](https://huggingface.co/immich-app/buffalo_l); [Detection model](https://huggingface.co/immich-app/buffalo_l/blob/main/detection/model.onnx), [Recognition model](https://huggingface.co/immich-app/buffalo_l/blob/main/recognition/model.onnx) | `ckpts/antelopev2/`, `ckpts/insightface/models/buffalo_l/` |
-| LTX base model | [ltx-2.3-22b-dev.safetensors](https://huggingface.co/Lightricks/LTX-2.3/blob/main/ltx-2.3-22b-dev.safetensors) | `ckpts/LTX2.3/` |
-| LTX distilled LoRA | [ltx-2.3-22b-distilled-lora-384.safetensors](https://huggingface.co/Lightricks/LTX-2.3/blob/main/ltx-2.3-22b-distilled-lora-384.safetensors) | `ckpts/LTX2.3/` |
-| LTX spatial upscaler | [ltx-2.3-spatial-upscaler-x2-1.1.safetensors](https://huggingface.co/Lightricks/LTX-2.3/blob/main/ltx-2.3-spatial-upscaler-x2-1.1.safetensors) | `ckpts/LTX2.3/` |
-| Gemma text encoder | [google/gemma-3-12b-it-qat-q4_0-unquantized](https://huggingface.co/google/gemma-3-12b-it-qat-q4_0-unquantized) | `ckpts/LTX2.3/gemma-3-12b-it-qat-q4_0-unquantized/` |
-| Qwen editing model (Track2 only) | [Qwen/Qwen-Image-Edit-2511](https://huggingface.co/Qwen/Qwen-Image-Edit-2511) | `ckpts/Qwen-Image-Edit-2511/` |
-| Qwen 4-step BF16 LoRA (Track2 only) | [Checkpoint](https://huggingface.co/lightx2v/Qwen-Image-Edit-2511-Lightning/blob/main/Qwen-Image-Edit-2511-Lightning-4steps-V1.0-bf16.safetensors) | `ckpts/` |
+<table>
+  <thead>
+    <tr>
+      <th>Stage</th>
+      <th>Model</th>
+      <th>Hugging Face</th>
+      <th>Local directory</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>First frame</td>
+      <td>ERNIE-Image-Turbo</td>
+      <td><a href="https://huggingface.co/baidu/ERNIE-Image-Turbo">baidu/ERNIE-Image-Turbo</a></td>
+      <td><code>ckpts/ERNIE-Image-Turbo/</code></td>
+    </tr>
+    <tr>
+      <td rowspan="3">Video draft</td>
+      <td>Wan configuration, T5, and VAE</td>
+      <td><a href="https://huggingface.co/Wan-AI/Wan2.2-I2V-A14B/tree/main">Wan-AI/Wan2.2-I2V-A14B</a></td>
+      <td><code>ckpts/Wan2.2-I2V-A14B/</code></td>
+    </tr>
+    <tr>
+      <td>Wan high-noise 4-step 720p 260412</td>
+      <td><a href="https://huggingface.co/lightx2v/Wan2.2-Distill-Models/blob/main/wan2.2_i2v_A14b_high_noise_lightx2v_4step_720p_260412.safetensors">Checkpoint</a></td>
+      <td><code>ckpts/Wan2.2-Distill-Models/</code></td>
+    </tr>
+    <tr>
+      <td>Wan low-noise 4-step 720p 260412</td>
+      <td><a href="https://huggingface.co/lightx2v/Wan2.2-Distill-Models/blob/main/wan2.2_i2v_A14b_low_noise_lightx2v_4step_720p_260412.safetensors">Checkpoint</a></td>
+      <td><code>ckpts/Wan2.2-Distill-Models/</code></td>
+    </tr>
+    <tr>
+      <td rowspan="2">Face swap</td>
+      <td>FaceFusion face swap and auxiliary models</td>
+      <td><a href="https://huggingface.co/facefusion/models-3.0.0/tree/main">models-3.0.0</a>, <a href="https://huggingface.co/facefusion/models-3.1.0/tree/main">models-3.1.0</a>, <a href="https://huggingface.co/facefusion/models-3.3.0/tree/main">models-3.3.0</a></td>
+      <td><code>ckpts/facefusion/</code></td>
+    </tr>
+    <tr>
+      <td>SCRFD detector and buffalo_l detection/recognition models</td>
+      <td><a href="https://huggingface.co/immich-app/buffalo_l">Immich buffalo_l mirror</a>; <a href="https://huggingface.co/immich-app/buffalo_l/blob/main/detection/model.onnx">Detection model</a>, <a href="https://huggingface.co/immich-app/buffalo_l/blob/main/recognition/model.onnx">Recognition model</a></td>
+      <td><code>ckpts/antelopev2/</code>, <code>ckpts/insightface/models/buffalo_l/</code></td>
+    </tr>
+    <tr>
+      <td rowspan="4">Motion interpolation</td>
+      <td>LTX base model</td>
+      <td><a href="https://huggingface.co/Lightricks/LTX-2.3/blob/main/ltx-2.3-22b-dev.safetensors">ltx-2.3-22b-dev.safetensors</a></td>
+      <td><code>ckpts/LTX2.3/</code></td>
+    </tr>
+    <tr>
+      <td>LTX distilled LoRA</td>
+      <td><a href="https://huggingface.co/Lightricks/LTX-2.3/blob/main/ltx-2.3-22b-distilled-lora-384.safetensors">ltx-2.3-22b-distilled-lora-384.safetensors</a></td>
+      <td><code>ckpts/LTX2.3/</code></td>
+    </tr>
+    <tr>
+      <td>LTX spatial upscaler</td>
+      <td><a href="https://huggingface.co/Lightricks/LTX-2.3/blob/main/ltx-2.3-spatial-upscaler-x2-1.1.safetensors">ltx-2.3-spatial-upscaler-x2-1.1.safetensors</a></td>
+      <td><code>ckpts/LTX2.3/</code></td>
+    </tr>
+    <tr>
+      <td>Gemma text encoder</td>
+      <td><a href="https://huggingface.co/google/gemma-3-12b-it-qat-q4_0-unquantized">google/gemma-3-12b-it-qat-q4_0-unquantized</a></td>
+      <td><code>ckpts/LTX2.3/gemma-3-12b-it-qat-q4_0-unquantized/</code></td>
+    </tr>
+    <tr>
+      <td rowspan="2">First frame edit</td>
+      <td>Qwen editing model (Track2 only)</td>
+      <td><a href="https://huggingface.co/Qwen/Qwen-Image-Edit-2511">Qwen/Qwen-Image-Edit-2511</a></td>
+      <td><code>ckpts/Qwen-Image-Edit-2511/</code></td>
+    </tr>
+    <tr>
+      <td>Qwen 4-step BF16 LoRA (Track2 only)</td>
+      <td><a href="https://huggingface.co/lightx2v/Qwen-Image-Edit-2511-Lightning/blob/main/Qwen-Image-Edit-2511-Lightning-4steps-V1.0-bf16.safetensors">Checkpoint</a></td>
+      <td><code>ckpts/</code></td>
+    </tr>
+  </tbody>
+</table>
 
 ### ERNIE and Wan
 
